@@ -2,9 +2,16 @@
 
 Please refer to README file for understanding and setting the environment of Reacher and Crawler.
 
+Refer to the following Jupyter notebooks;
+
+* Reacher: Continuous_Control-SAC-Reacher.ipynb
+* Crawler: Crawler/Continuous_Control-SAC-Crawler.ipynb
+
+
 ## Background
 
-After reviewing a few algorithm, I found the SAC (Soft Actor-Critic) algorithm quite fascinating as it addresses, in mathematical terms, the fundamental questions of how to succeed at a task while remaining open to other potentially valid alternatives, in a way keeping your options open. This question is core to the exploitation - exploration dilemma. What I found very unusual is how such an algorithm can speed up training and solve the brittleness issues of many determinisitc approaches.
+After reviewing a few algorithm, I found the SAC (Soft Actor-Critic) algorithm quite fascinating as it addresses, in mathematical terms, the fundamental questions of how to succeed at a task while remaining open to other potentially valid alternatives. This question is core to the exploitation - exploration dilemma. What I found very unusual is how such an algorithm can speed up training and solve the brittleness issues of many determinisitc approaches (like DDPG).
+
 SAC is also addressing the sample complexity issue: off-policy methods are more sample-efficient, as long as we can keep policy updates within an acceptable range, like in Trust Region Policy Optimization [TRPO] or Proximal Policy Optimization [PPO] methods.
 
 ## Soft Actor-Critic (SAC) Algorithm
@@ -77,9 +84,15 @@ Explanations from the paper: we apply an invertible squashing function (tanh) to
 
 ### Network parameters 
 
-After (too) many trials, I opted for the following hyperparameters and network parameters. I also looked at the influence of the double Q network minimum trick and constant tenperature values (0 and 0.0035). See results below.
+After (too) many trials, I opted for the following hyperparameters and network parameters. I also looked at the influence of the double Q network minimum trick. See results below.
 
-Note that all the learning rates (actor, critic and alpha optimizers) are initialized with the same value.
+Note that:
+
+* I started training after running 10 epochs so that enough experiences (10,000) are stored, which prevents the policy from over-specializing on a low number of sampled experiences.
+
+* Many hyperparameters are very sensitive to tune (like soft update, learning rates, log std ranges)
+
+The optimal buffer size is around 50,000, i.e. about 5 times less than the number of experiences used for training per epoch (1000 times batches of 256 experiences, i.e. 256,000 sampled experiences per epoch). 
 
 The networks have the following architecture:
 
@@ -92,21 +105,57 @@ The networks have the following architecture:
 
 ### Results 
 
-|Hyperparameters|Standard SAC|No Q_Min|Constant Alpha|Alpha = 0|
-|---|---|---|---|---|
-|Replay Buffer size|50,000|=|=|=|
+|Hyperparameters|Standard SAC (2019 version)|
+|---|---|
+|Replay Buffer size|50,000|
 |Batch size|256|=|=|=|
-|Soft Target Tau|0.02|=|=|=|
-|Temperature (alpha)|Auto|Auto|0|0.0035|
-|Learning Rates|0.0005|=|=|=|=|
-|TAU|0.005|=|=|=|=|
+|Soft Target Tau|0.02|
+|Temperature (alpha)|Auto|
+|Learning Rate - actor|0.0003 +/0.0002|=|=|=|=|
+|Learning Rate - critic|0.0005 +/0.0005|=|=|=|=|
+|Learning Rate - temperature|0.0005 +/0.0005|
 |**RESULTS**|
-|Solved Episodes|20|
-|First Episod > 30|46|
+|Solved Episodes|Best score = 20|
+
+
+Here's the learning curves of the tests:
+
+Note that evaluation should be done after removing stochasticity of the action choice, as in the get_action2 function (in the notebook, set train_mode = False and load_mode = True and run the entire notebook).
+
+The charts below were recorded during training mode.
+
+* Standard SAC with temperature auto-tuning
+
+![learning_SAC](Results/SAC_test_newbuffer50000(22solved).png)
+
+* SAC with a single soft Q-function
+
+![single_q](Results/SAC_test_singleQ (stopped_232).png)
+
 
 ## Future improvements
 
-Here's a few ideas to explore to improve the current algorithm;
+Here's a few ideas to explore to improve the current algorithm:
 
 * sample experiences in a more efficient way, e.g. prioritized replay from a continous space.
 * adjust the soft update according to the certainty of the network (low standard deviation of the policy should lead to more stability)
+* teach a new network with a pre-filled buffer of positive experiences from the beginning
+* introduce a target network for the actor
+
+
+## Optional Crawler Project
+
+I also implemented the SAC algorithm for the Crawler environment. After a couple of hours of training and very few changes in hyperparameters, the game was solved, which is quite remarkable!
+
+See performance below.
+
+Note that the evaluation should be done by removing stochasticity of the action choice, as in the get_action2 function.
+
+The learning curve is as below:
+
+![Results_chart.png](Crawler/Results_chart.png)
+
+You can run the notebook Crawler/Continuous_Control-SAC-Crawler.ipynb to watch about 10 episods in the test mode.
+
+The recorded scores based on the current weights of the network are:
+
